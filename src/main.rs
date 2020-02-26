@@ -5,6 +5,7 @@ use playlist::Playlist;
 use std::env;
 use std::io::BufReader;
 use rand;
+use std::time::{Duration, SystemTime};
 
 fn main() {
     let mut dir = env::home_dir().unwrap();
@@ -18,14 +19,23 @@ fn main() {
     println!("{:?}", playlist);
 
     let device = rodio::default_output_device().unwrap();
-    let sink = rodio::Sink::new(&device);
 
     loop {
         let file = std::fs::File::open(playlist.current()).unwrap();
         println!("{:?}", playlist.current());
-        sink.append(rodio::Decoder::new(BufReader::new(file)).unwrap());
-        playlist.next();
+        let now = SystemTime::now();
+        let sink = rodio::play_once(&device, BufReader::new(file)).unwrap();
         sink.sleep_until_end();
-        sink.stop();
+
+        let elapsed = now.elapsed().unwrap();
+        let min_run = Duration::from_secs(5);
+        if elapsed < min_run {
+            println!("ERR {:?} elapsed", elapsed);
+        }
+        else {
+            println!("{:?} elapsed", elapsed);
+        }
+
+        playlist.next();
     }
 }
