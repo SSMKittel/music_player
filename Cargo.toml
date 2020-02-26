@@ -1,0 +1,23 @@
+[package]
+name = "music_player"
+version = "0.1.0"
+authors = ["Samuel Kittel <S.S.M.Kittel+github@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = ["mp3"]
+
+mp3 = ["rodio/mp3"]
+flac = ["rodio/flac"]
+vorbis = ["rodio/vorbis"]
+wav = ["rodio/wav"]
+
+[dependencies]
+rand = "0.7.*"
+
+[dependencies.rodio]
+version = "0.10.*"
+default-features = false
+features = ["mp3"]
