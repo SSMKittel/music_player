@@ -14,15 +14,20 @@ fn main() {
 
     let mut playlist = Playlist::from_directory(&dir).unwrap().unwrap();
     let mut rng = rand::thread_rng();
-    playlist.shuffle(&mut rng);
-    playlist.first();
-    println!("{:?}", playlist);
 
+    println!("{:?}", playlist);
     let device = rodio::default_output_device().unwrap();
 
     loop {
-        let file = std::fs::File::open(playlist.current()).unwrap();
-        println!("{:?}", playlist.current());
+        let mut current = playlist.current();
+        if current.is_none() {
+            playlist.shuffle(&mut rng);
+            playlist.first();
+            current = playlist.current();
+        }
+        let current = current.unwrap();
+        let file = std::fs::File::open(current).unwrap();
+        println!("{:?}", current);
         let now = SystemTime::now();
         let sink = rodio::play_once(&device, BufReader::new(file)).unwrap();
         sink.sleep_until_end();

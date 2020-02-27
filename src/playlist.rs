@@ -14,9 +14,9 @@ pub struct Playlist {
     // current order to play files in (index of songs)
     order: Vec<usize>,
     // current song to play (index of songs)
-    current_song: usize,
+    current_song: Option<usize>,
     // current position in playlist order (index of order)
-    current_order: usize,
+    current_order: Option<usize>,
 }
 
 impl Playlist {
@@ -29,8 +29,8 @@ impl Playlist {
         Some(Playlist{
             songs,
             order,
-            current_song: 0,
-            current_order: 0
+            current_song: None,
+            current_order: None
         })
     }
 
@@ -85,29 +85,49 @@ impl Playlist {
     }
 
     #[allow(dead_code)]
-    pub fn current(&self) -> &Path {
-        self.songs[self.current_song].as_path()
+    pub fn current(&self) -> Option<&Path> {
+        self.current_song.map(|cs| self.songs[cs].as_path())
     }
 
     #[allow(dead_code)]
-    pub fn prev(&mut self) -> &Path {
-        self.current_order = if self.current_order > 0 { self.current_order - 1 } else { self.songs.len() - 1 };
-        self.current_song = self.order[self.current_order];
-        self.songs[self.current_song].as_path()
+    pub fn prev(&mut self) {
+        if let Some(ord) = self.current_order {
+            if ord == 0 {
+                self.current_order = None;
+                self.current_song = None;
+            }
+            else {
+                self.current_order = Some(ord - 1);
+                self.current_song = Some(self.order[ord - 1]);
+            }
+        }
     }
 
     #[allow(dead_code)]
-    pub fn next(&mut self) -> &Path {
-        self.current_order = (self.current_order + 1) % self.songs.len();
-        self.current_song = self.order[self.current_order];
-        self.songs[self.current_song].as_path()
+    pub fn next(&mut self) {
+        if let Some(ord) = self.current_order {
+            if ord + 1 >= self.songs.len() {
+                self.current_order = None;
+                self.current_song = None;
+            }
+            else {
+                self.current_order = Some(ord + 1);
+                self.current_song = Some(self.order[ord + 1]);
+            }
+        }
     }
 
     #[allow(dead_code)]
-    pub fn first(&mut self) -> &Path {
-        self.current_order = 0;
-        self.current_song = self.order[self.current_order];
-        self.songs[self.current_song].as_path()
+    pub fn first(&mut self) {
+        self.current_order = Some(0);
+        self.current_song = Some(self.order[0]);
+    }
+
+    #[allow(dead_code)]
+    pub fn last(&mut self) {
+        let end = self.songs.len() - 1;
+        self.current_order = Some(end);
+        self.current_song = Some(self.order[end]);
     }
 
     #[allow(dead_code)]
@@ -121,8 +141,10 @@ impl Playlist {
         where R: Rng + ?Sized
     {
         self.order.shuffle(rng);
-        // order has been scrambled; find the index for the current song (it is unique and guaranteed to exist)
-        self.current_order = self.order.iter().position(|&o| o == self.current_song).unwrap()
+        if let Some(song) = self.current_song {
+            // order has been scrambled; find the index for the current song (it is unique and guaranteed to exist)
+            self.current_order = Some(self.order.iter().position(|&o| o == song).expect("Unable to find current song in shuffled order"))
+        }
     }
 }
 
@@ -146,12 +168,19 @@ mod tests {
         let playlist = Playlist::from_line_delimited_string("first\nsecond\nthird\nfourth\nfifth");
         assert!(playlist.is_some());
         let mut playlist = playlist.unwrap();
-        assert_eq!(playlist.current().to_str(), Some("first"));
-        assert_eq!(playlist.next().to_str(), Some("second"));
-        assert_eq!(playlist.next().to_str(), Some("third"));
-        assert_eq!(playlist.next().to_str(), Some("fourth"));
-        assert_eq!(playlist.next().to_str(), Some("fifth"));
-        assert_eq!(playlist.next().to_str(), Some("first"));
+        assert_eq!(playlist.current(), None);
+        playlist.first();
+        assert_eq!(playlist.current(), Some(Path::new("first")));
+        playlist.next();
+        assert_eq!(playlist.current(), Some(Path::new("second")));
+        playlist.next();
+        assert_eq!(playlist.current(), Some(Path::new("third")));
+        playlist.next();
+        assert_eq!(playlist.current(), Some(Path::new("fourth")));
+        playlist.next();
+        assert_eq!(playlist.current(), Some(Path::new("fifth")));
+        playlist.next();
+        assert_eq!(playlist.current(), None);
     }
 
     #[test]
@@ -159,12 +188,19 @@ mod tests {
         let playlist = Playlist::from_line_delimited_string("first\nsecond\nthird\nfourth\nfifth");
         assert!(playlist.is_some());
         let mut playlist = playlist.unwrap();
-        assert_eq!(playlist.current().to_str(), Some("first"));
-        assert_eq!(playlist.prev().to_str(), Some("fifth"));
-        assert_eq!(playlist.prev().to_str(), Some("fourth"));
-        assert_eq!(playlist.prev().to_str(), Some("third"));
-        assert_eq!(playlist.prev().to_str(), Some("second"));
-        assert_eq!(playlist.prev().to_str(), Some("first"));
+        assert_eq!(playlist.current(), None);
+        playlist.last();
+        assert_eq!(playlist.current(), Some(Path::new("fifth")));
+        playlist.prev();
+        assert_eq!(playlist.current(), Some(Path::new("fourth")));
+        playlist.prev();
+        assert_eq!(playlist.current(), Some(Path::new("third")));
+        playlist.prev();
+        assert_eq!(playlist.current(), Some(Path::new("second")));
+        playlist.prev();
+        assert_eq!(playlist.current(), Some(Path::new("first")));
+        playlist.prev();
+        assert_eq!(playlist.current(), None);
     }
 
     #[test]
@@ -174,12 +210,15 @@ mod tests {
         let mut playlist = playlist.unwrap();
 
         let mut rng: StdRng = SeedableRng::seed_from_u64(123456789);
-        playlist.next(); // Move to "second"
+        playlist.first();
+        playlist.next();
         playlist.shuffle(&mut rng);
 
         let songs: Vec<&str> = playlist.order.iter().map(|&o| playlist.songs[o].to_str().unwrap()).collect();
         assert_eq!(songs, vec!["first", "fifth", "third", "fourth", "second"]);
-        assert_eq!(playlist.next().to_str(), Some("first")); // End of playlist, restart from start
+        assert_eq!(playlist.current(), Some(Path::new("second")));
+        playlist.next();
+        assert_eq!(playlist.current(), None); // End of playlist, restart from start
     }
 
     #[test]
@@ -189,17 +228,19 @@ mod tests {
         let mut playlist = playlist.unwrap();
 
         let mut rng: StdRng = SeedableRng::seed_from_u64(123456789);
+        playlist.first();
         playlist.shuffle(&mut rng); // new order: "first", "fifth", "third", "fourth", "second"
         playlist.next(); // Move to "fifth"
         playlist.playlist_order();
 
         let songs: Vec<&str> = playlist.order.iter().map(|&o| playlist.songs[o].to_str().unwrap()).collect();
         assert_eq!(songs, vec!["first", "second", "third", "fourth", "fifth"]);
-        assert_eq!(playlist.current_order, 4);
-        assert_eq!(playlist.current_song, 4);
-        assert_eq!(playlist.current().to_str(), Some("fifth")); // Still on "fifth"
+        assert_eq!(playlist.current_order, Some(4));
+        assert_eq!(playlist.current_song, Some(4));
+        assert_eq!(playlist.current(), Some(Path::new("fifth"))); // Still on "fifth"
 
-        assert_eq!(playlist.next().to_str(), Some("first")); // End of playlist, restart from start
+        playlist.next();
+        assert_eq!(playlist.current(), None); // End of playlist, restart from start
     }
 
     #[test]
