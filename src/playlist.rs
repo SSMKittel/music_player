@@ -72,7 +72,7 @@ impl Playlist {
                     let ext = &ext;
 
                     if (cfg!(feature = "mp3") && ext == "mp3")
-                    || (cfg!(feature = "ogg") && ext == "ogg")
+                    || (cfg!(feature = "vorbis") && ext == "ogg")
                     || (cfg!(feature = "flac") && ext == "flac")
                     || (cfg!(feature = "wav") && ext == "wav")
                     {
@@ -253,15 +253,15 @@ mod tests {
             #[cfg(feature = "mp3")] "1.mp3",
             #[cfg(feature = "wav")] "2.wav",
             #[cfg(feature = "flac")] "3.flac",
-            #[cfg(feature = "ogg")] "4.ogg",
+            #[cfg(feature = "vorbis")] "4.ogg",
             #[cfg(feature = "mp3")] "sub1/1.MP3",
             #[cfg(feature = "wav")] "sub1/2.WAV",
             #[cfg(feature = "flac")] "sub1/3.FLAC",
-            #[cfg(feature = "ogg")] "sub1/4.OGG",
+            #[cfg(feature = "vorbis")] "sub1/4.OGG",
             #[cfg(feature = "mp3")] "sub2/1.mp3",
             #[cfg(feature = "wav")] "sub2/2.wav",
             #[cfg(feature = "flac")] "sub2/3.flac",
-            #[cfg(feature = "ogg")] "sub2/4.ogg",
+            #[cfg(feature = "vorbis")] "sub2/4.ogg",
         ];
         let mut expected: Vec<PathBuf> = testcases.iter().map(|&p| [&cd, &PathBuf::from(p)].iter().collect()).collect();
         expected.sort();
